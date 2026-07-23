@@ -228,6 +228,33 @@
   }
   .plan-save .v{font-size:30px; font-weight:700; letter-spacing:-.5px;}
   .plan-save .l{font-size:12px; opacity:.85; margin-top:2px;}
+
+  /* route planner sub-tabs + forms */
+  .rsubnav{display:flex; gap:6px; margin-bottom:20px; flex-wrap:wrap;}
+  .rsubnav button{border:1px solid var(--ring); background:var(--card); color:var(--ink-2);
+    font:inherit; font-size:13px; padding:8px 15px; border-radius:10px; cursor:pointer;}
+  .rsubnav button:hover{color:var(--ink);}
+  .rsubnav button.active{background:var(--brand); color:#fff; border-color:var(--brand);}
+  .field{display:flex; flex-direction:column; gap:5px; margin-bottom:12px;}
+  .field label{font-size:12px; color:var(--muted);}
+  .field input, .field select, .field textarea{font:inherit; font-size:13.5px; padding:9px 11px;
+    border:1px solid var(--ring); border-radius:10px; background:var(--bg); color:var(--ink); width:100%;}
+  .field textarea{min-height:120px; resize:vertical; font-variant-numeric:tabular-nums;}
+  .row-2{display:grid; grid-template-columns:1fr 1fr; gap:12px;}
+  .btn-primary{background:var(--brand); color:#fff; border:none; border-radius:10px; padding:10px 16px;
+    font:inherit; font-size:13.5px; font-weight:600; cursor:pointer;}
+  .btn-primary:hover{background:var(--brand-2);}
+  .src-tag{font-size:10.5px; padding:1px 7px; border-radius:99px; background:var(--fc-tint);
+    color:var(--ink-2); border:1px solid var(--ring);}
+  .src-tag.live{background:#eafaf2; color:var(--good); border-color:#bfe6d2;}
+  .warn-line{background:#fff4ef; border:1px solid #f6d3c2; border-radius:10px; padding:9px 12px;
+    font-size:12.5px; color:#b64a1c; margin:10px 0;}
+  .ev-item{display:flex; gap:10px; align-items:center; padding:10px 0; border-bottom:1px solid var(--grid); font-size:13px;}
+  .ev-item .toct{margin-left:auto; font-size:12px; color:var(--ink-2); white-space:nowrap;}
+  .ev-item a{color:var(--ink-2);}
+  .mini-kpi{display:flex; gap:24px; flex-wrap:wrap; margin:6px 0 4px;}
+  .mini-kpi div b{font-size:19px; font-weight:700;}
+  .mini-kpi div span{display:block; font-size:11.5px; color:var(--muted);}
 </style>
 </head>
 <body>
@@ -372,6 +399,14 @@
 
     <!-- ================= ROUTE PLANNER VIEW ================= -->
     <div id="routeView" hidden>
+      <div class="rsubnav" id="rSubnav">
+        <button data-t="scenario" class="active">Event scenario</button>
+        <button data-t="plan">Plan a route</button>
+        <button data-t="fleet">Fleet / batch upload</button>
+        <button data-t="settings">Cost &amp; events</button>
+      </div>
+
+      <div id="rt-scenario" class="rtab">
       <div class="filters">
         <span class="flabel">Scenario</span>
         <div class="seg" id="segEvent">
@@ -414,6 +449,111 @@
       </section>
 
       <p class="footer-note" id="rFoot"></p>
+      </div><!-- /rt-scenario -->
+
+      <!-- ---- Plan a route ---- -->
+      <div id="rt-plan" class="rtab" hidden>
+        <div class="grid2b">
+          <section class="card">
+            <div class="card-head"><div>
+              <h2>Plan a route</h2>
+              <p class="sub">Any two places · real roads via OSRM when online, estimated otherwise</p>
+            </div></div>
+            <div class="row-2">
+              <div class="field"><label>From</label><input id="planOrigin" value="Chandigarh"></div>
+              <div class="field"><label>To</label><input id="planDest" value="Agra"></div>
+            </div>
+            <div class="field"><label>Vehicle</label><select id="planVehicle">
+              <option value="truck">Truck (HCV)</option><option value="van">Van (LCV)</option><option value="car">Car</option>
+            </select></div>
+            <button class="btn-primary" id="planGo">Find best route</button>
+            <div class="sub" id="planStatus" style="margin-top:10px"></div>
+            <div id="planResult"></div>
+          </section>
+          <section class="card">
+            <div class="card-head"><div>
+              <h2>Route map</h2>
+              <p class="sub">Recommended route in green · event zones shaded orange</p>
+            </div></div>
+            <div id="planMap"></div>
+          </section>
+        </div>
+      </div>
+
+      <!-- ---- Fleet / batch ---- -->
+      <div id="rt-fleet" class="rtab" hidden>
+        <div class="grid2b">
+          <section class="card">
+            <div class="card-head"><div>
+              <h2>Batch shipments</h2>
+              <p class="sub">CSV rows: <code>origin,destination[,vehicle]</code> · uses the built-in city list</p>
+            </div></div>
+            <div class="field"><input type="file" id="csvFile" accept=".csv,.txt"></div>
+            <button class="ghost-btn" id="csvSample">Load sample shipments</button>
+            <div id="fleetResult"></div>
+          </section>
+          <section class="card">
+            <div class="card-head"><div>
+              <h2>Multi-stop optimiser (VRP)</h2>
+              <p class="sub">First line = depot, one stop per line · nearest-neighbour + 2-opt</p>
+            </div></div>
+            <div class="field"><textarea id="stopsBox">Delhi
+Jaipur
+Agra
+Mathura
+Rohtak
+Ludhiana</textarea></div>
+            <div class="row-2">
+              <div class="field"><label>Vehicle</label><select id="vrpVehicle">
+                <option value="truck">Truck (HCV)</option><option value="van">Van (LCV)</option><option value="car">Car</option></select></div>
+              <div class="field"><label>&nbsp;</label><button class="btn-primary" id="vrpGo">Optimise stop order</button></div>
+            </div>
+            <div id="vrpResult"></div>
+            <div id="vrpMap"></div>
+          </section>
+        </div>
+      </div>
+
+      <!-- ---- Cost & events ---- -->
+      <div id="rt-settings" class="rtab" hidden>
+        <div class="grid2b">
+          <section class="card">
+            <div class="card-head"><div>
+              <h2>Cost model</h2>
+              <p class="sub">Drives “Plan a route” and batch pricing</p>
+            </div></div>
+            <div class="row-2">
+              <div class="field"><label>Diesel price (₹/L)</label><input id="cFuel" type="number" value="95"></div>
+              <div class="field"><label>Driver cost (₹/hr)</label><input id="cDriver" type="number" value="180"></div>
+              <div class="field"><label>Idle cost in jams (₹/hr)</label><input id="cIdle" type="number" value="150"></div>
+              <div class="field"><label>Default vehicle</label><select id="cVehicle">
+                <option value="truck">Truck (HCV)</option><option value="van">Van (LCV)</option><option value="car">Car</option></select></div>
+            </div>
+            <div class="mini-kpi" id="costDerived"></div>
+          </section>
+          <section class="card">
+            <div class="card-head"><div>
+              <h2>Disruption events</h2>
+              <p class="sub">Seeded from real advisories · pluggable for live feeds</p>
+            </div></div>
+            <div id="evList"></div>
+            <div class="row-2" style="margin-top:12px">
+              <div class="field"><label>Event city</label><input id="evCity" placeholder="e.g. Mumbai"></div>
+              <div class="field"><label>Delay (hrs)</label><input id="evDelay" type="number" value="3"></div>
+            </div>
+            <div class="field"><label>Title</label><input id="evTitle" placeholder="e.g. Marathon road closures"></div>
+            <button class="ghost-btn" id="evAdd">Add event</button>
+            <div class="sub" id="evStatus" style="margin-top:8px"></div>
+          </section>
+        </div>
+        <section class="card">
+          <div class="card-head"><div>
+            <h2>Learning log</h2>
+            <p class="sub">Recent plans saved locally · log actuals here to calibrate penalties over time</p>
+          </div></div>
+          <div id="logList"></div>
+        </section>
+      </div>
     </div>
   </div>
 </div>
@@ -1689,10 +1829,8 @@ function renderRouting(){
 function showRouting(){
   state.view = "route";
   setView("route");
-  document.getElementById("pageTitle").textContent = "Route Planner · Event-aware routing";
-  document.getElementById("pageSub").textContent = "Freight run Chandigarh → Agra · reroute to cut cost when an event blocks the usual city";
   setNav("navRoute");
-  renderRouting();
+  selectRtab(state.rtab || "scenario");
 }
 
 /* ---- routing controls ---- */
@@ -1710,6 +1848,361 @@ document.getElementById("sevRange").addEventListener("input", ev=>{
 });
 
 /* ============================================================
+   8c. Advanced routing — real geocoding/roads, cost model,
+       events layer, batch upload, multi-stop VRP, learning log
+============================================================ */
+function val(id){ return document.getElementById(id).value; }
+
+/* ---- offline gazetteer (instant geocoding for common places) ---- */
+const GAZ = {
+  "delhi":[28.61,77.21],"new delhi":[28.61,77.21],"mumbai":[19.08,72.88],"bengaluru":[12.97,77.59],
+  "bangalore":[12.97,77.59],"chennai":[13.08,80.27],"kolkata":[22.57,88.36],"hyderabad":[17.38,78.49],
+  "pune":[18.52,73.86],"ahmedabad":[23.02,72.57],"jaipur":[26.91,75.79],"chandigarh":[30.73,76.78],
+  "lucknow":[26.85,80.95],"kanpur":[26.45,80.33],"nagpur":[21.15,79.09],"indore":[22.72,75.86],
+  "bhopal":[23.26,77.41],"surat":[21.17,72.83],"agra":[27.18,78.01],"varanasi":[25.32,82.97],
+  "patna":[25.59,85.14],"ludhiana":[30.90,75.86],"amritsar":[31.63,74.87],"rohtak":[28.90,76.61],
+  "gurugram":[28.46,77.03],"gurgaon":[28.46,77.03],"noida":[28.54,77.39],"meerut":[28.98,77.71],
+  "kochi":[9.93,76.27],"coimbatore":[11.02,76.96],"visakhapatnam":[17.69,83.22],"vijayawada":[16.51,80.65],
+  "nashik":[19.99,73.79],"rajkot":[22.30,70.80],"vadodara":[22.31,73.19],"jodhpur":[26.24,73.02],
+  "udaipur":[24.58,73.71],"dehradun":[30.32,78.03],"shimla":[31.10,77.17],"guwahati":[26.14,91.74],
+  "bhubaneswar":[20.30,85.82],"raipur":[21.25,81.63],"ranchi":[23.34,85.31],"jalandhar":[31.33,75.58],
+  "ambala":[30.38,76.78],"mathura":[27.49,77.67],"palwal":[28.14,77.33],"sonipat":[28.99,77.02],
+  "new york":[40.71,-74.01],"london":[51.51,-0.13],"dubai":[25.20,55.27],"singapore":[1.35,103.82],
+};
+function titleCase(s){ return s.replace(/\b\w/g, c=>c.toUpperCase()); }
+function gazLookup(name){
+  if(!name) return null;
+  const k = name.trim().toLowerCase();
+  return GAZ[k] ? { lat:GAZ[k][0], lng:GAZ[k][1], name:titleCase(name.trim()), src:"local" } : null;
+}
+function fetchT(url, ms=6000){
+  const c = new AbortController(), t = setTimeout(()=>c.abort(), ms);
+  return fetch(url, { signal:c.signal, headers:{ "Accept":"application/json" } }).finally(()=>clearTimeout(t));
+}
+async function geocode(name){
+  if(!name || !name.trim()) return null;
+  const g = gazLookup(name); if(g) return g;
+  try{
+    const r = await fetchT("https://nominatim.openstreetmap.org/search?format=json&limit=1&q="+encodeURIComponent(name));
+    const j = await r.json();
+    if(j && j[0]) return { lat:+j[0].lat, lng:+j[0].lon, name:(j[0].display_name||name).split(",")[0], src:"osm" };
+  }catch(e){}
+  return null;
+}
+function haversine(a,b){
+  const R=6371, dLat=(b.lat-a.lat)*Math.PI/180, dLng=(b.lng-a.lng)*Math.PI/180;
+  const s=Math.sin(dLat/2)**2 + Math.cos(a.lat*Math.PI/180)*Math.cos(b.lat*Math.PI/180)*Math.sin(dLng/2)**2;
+  return 2*R*Math.asin(Math.sqrt(s));
+}
+function sampleLine(a,b,n){
+  const out=[]; for(let i=0;i<=n;i++){ const t=i/n; out.push([a.lat+(b.lat-a.lat)*t, a.lng+(b.lng-a.lng)*t]); } return out;
+}
+async function roadRoutes(a,b){
+  try{
+    const r = await fetchT(`https://router.project-osrm.org/route/v1/driving/${a.lng},${a.lat};${b.lng},${b.lat}?overview=full&geometries=geojson&alternatives=true`);
+    const j = await r.json();
+    if(j && j.routes && j.routes.length)
+      return j.routes.map(rt=>({ km:rt.distance/1000, hours:rt.duration/3600, geom:rt.geometry.coordinates.map(c=>[c[1],c[0]]), src:"osrm" }));
+  }catch(e){}
+  const km = haversine(a,b)*1.3;
+  return [{ km, hours:km/50, geom:sampleLine(a,b,24), src:"estimate" }];
+}
+
+/* ---- cost model ---- */
+const VCLASS = {
+  truck:{ mileage:4,  maint:6,   toll:2.2, label:"Truck (HCV)" },
+  van:  { mileage:8,  maint:3,   toll:1.3, label:"Van (LCV)"   },
+  car:  { mileage:15, maint:1.5, toll:1.0, label:"Car"         },
+};
+const COST = { fuel:95, driverPerHr:180, idlePerHr:150, vehicle:"truck" };
+function perKm(vk){ const c=VCLASS[vk]; return COST.fuel/c.mileage + c.maint; }
+function tollEst(km,vk){ return km*0.9*VCLASS[vk].toll; }
+function priceRoute(km,hours,vk,penalty){
+  const run=km*perKm(vk), drv=hours*COST.driverPerHr, toll=tollEst(km,vk), pen=penalty||0;
+  return { run, drv, toll, pen, total:run+drv+toll+pen };
+}
+
+/* ---- events layer (seeded from real advisories, pluggable) ---- */
+const EVENTS = [
+  { id:"del-monsoon", title:"Delhi — Monsoon Session road restrictions", lat:28.62, lng:77.21, radiusKm:12, delayH:4, active:true,
+    source:"Delhi Traffic Police advisory · 20 Jul 2026",
+    url:"https://www.businesstoday.in/india/story/monsoon-session-2026-delhi-traffic-police-issues-route-advisory-avoid-these-roads-543819-2026-07-19" },
+  { id:"pun-rally", title:"Pune — rally / protest march", lat:18.52, lng:73.86, radiusKm:6, delayH:2, active:true,
+    source:"Pune City Traffic Police advisory · 23 Jul 2026",
+    url:"https://www.mypunepulse.com/pune-traffic-advisory-diversions-announced-for-rally-today-commuters-asked-to-avoid-ganesh-road/" },
+];
+function eventsOnGeom(geom){
+  const hits=[];
+  for(const ev of EVENTS){ if(!ev.active) continue;
+    for(const p of geom){ if(haversine({lat:p[0],lng:p[1]},{lat:ev.lat,lng:ev.lng})<=ev.radiusKm){ hits.push(ev); break; } }
+  }
+  return hits;
+}
+function eventPenalty(evs){ return evs.reduce((s,e)=>s+e.delayH*(COST.driverPerHr+COST.idlePerHr),0); }
+function eventDelayH(evs){ return evs.reduce((s,e)=>s+e.delayH,0); }
+
+/* ---- lat/lng map ---- */
+function geoMap(container, routes, marks, height){
+  container.innerHTML="";
+  const W=Math.max(300,container.clientWidth), H=height||360, pad=34;
+  let all=[]; routes.forEach(r=>{ all=all.concat(r.geom); });
+  marks.forEach(m=>all.push([m.lat,m.lng]));
+  if(!all.length) return;
+  const lats=all.map(c=>c[0]), lngs=all.map(c=>c[1]);
+  let la=Math.min(...lats), lb=Math.max(...lats), lo=Math.min(...lngs), hi=Math.max(...lngs);
+  // frame the route with a margin (events do NOT expand the frame)
+  const padLat=(lb-la)*0.15+0.06, padLng=(hi-lo)*0.15+0.06;
+  la-=padLat; lb+=padLat; lo-=padLng; hi+=padLng;
+  const nearEvents = EVENTS.filter(e=>e.active && e.lat>=la && e.lat<=lb && e.lng>=lo && e.lng<=hi);
+  const latMean=(la+lb)/2, kx=Math.cos(latMean*Math.PI/180);
+  const spanX=(hi-lo)*kx||1, spanY=(lb-la)||1;
+  const sc=Math.min((W-2*pad)/spanX,(H-2*pad)/spanY);
+  const ox=(W-spanX*sc)/2, oy=(H-spanY*sc)/2;
+  const X=lng=>ox+(lng-lo)*kx*sc, Y=lat=>oy+(lb-lat)*sc, kmPx=km=>km/111*sc;
+  const svg=svgEl("svg",{ width:W, height:H, viewBox:`0 0 ${W} ${H}` }); svg.style.display="block"; container.appendChild(svg);
+  nearEvents.forEach(e=>{
+    svg.appendChild(svgEl("circle",{ cx:X(e.lng), cy:Y(e.lat), r:Math.max(7,kmPx(e.radiusKm)),
+      fill:"rgba(235,104,52,.14)", stroke:C.orange, "stroke-width":1.3 }));
+    svg.appendChild(svgEl("circle",{ cx:X(e.lng), cy:Y(e.lat), r:4, fill:C.orange }));
+  });
+  for(let i=routes.length-1;i>=0;i--){
+    const rt=routes[i], best=i===0;
+    const pts=rt.geom.map(c=>[X(c[1]),Y(c[0])]);
+    svg.appendChild(svgEl("path",{ d:linePath(pts), fill:"none",
+      stroke:best?C.green:C.grid, "stroke-width":best?4:2.5, "stroke-linecap":"round", "stroke-linejoin":"round", opacity:best?1:.9 }));
+  }
+  marks.forEach(m=>{
+    svg.appendChild(svgEl("circle",{ cx:X(m.lng), cy:Y(m.lat), r:6.5, fill:C.violet, stroke:"#fff", "stroke-width":2 }));
+    const t=svgEl("text",{ x:X(m.lng)+10, y:Y(m.lat)+4, "font-size":11.5, "font-weight":600, fill:C.ink });
+    t.textContent=m.label||m.name; svg.appendChild(t);
+  });
+}
+
+/* ---- Plan a route ---- */
+async function runPlan(){
+  const oq=val("planOrigin"), dq=val("planDest"), vk=val("planVehicle");
+  const status=t=>document.getElementById("planStatus").textContent=t;
+  status("Locating places…");
+  const [o,d] = await Promise.all([geocode(oq), geocode(dq)]);
+  if(!o){ status(`Couldn't find “${oq}”.`); return; }
+  if(!d){ status(`Couldn't find “${dq}”.`); return; }
+  status("Finding roads…");
+  const routes = (await roadRoutes(o,d)).map((rt,i)=>({ ...rt, idx:i }));
+  const evald = routes.map(rt=>{
+    const evs=eventsOnGeom(rt.geom), pen=eventPenalty(evs);
+    return { ...rt, evs, pen, price:priceRoute(rt.km,rt.hours,vk,pen) };
+  }).sort((a,b)=>a.price.total-b.price.total);
+  window._lastPlan={ o, d, evald, vk };
+  drawPlanMap(evald,o,d);
+  renderPlanResult(evald,o,d);
+  logRoute(o,d,evald[0]);
+  status("");
+}
+function drawPlanMap(evald,o,d){
+  geoMap(document.getElementById("planMap"), evald,
+    [{lat:o.lat,lng:o.lng,label:o.name},{lat:d.lat,lng:d.lng,label:d.name}], 360);
+}
+function renderPlanResult(evald,o,d){
+  const best=evald[0];
+  const direct=evald.find(r=>r.idx===0) || evald[evald.length-1];
+  const rerouted = best.idx!==direct.idx && best.evs.length<direct.evs.length;
+  const saving = Math.max(0, direct.price.total-best.price.total);
+  const srcTag = best.src==="osrm" ? '<span class="src-tag live">live roads</span>'
+             : best.src==="estimate" ? '<span class="src-tag">estimated</span>' : '';
+  let html=`<div class="mini-kpi" style="margin-top:14px">
+    <div><b>${rupee(best.price.total)}</b><span>delivered cost</span></div>
+    <div><b>${best.km.toFixed(0)} km</b><span>distance ${srcTag}</span></div>
+    <div><b>${best.hours.toFixed(1)} h</b><span>drive time</span></div>
+    ${best.pen>0?`<div><b style="color:var(--bad)">+${rupee(best.pen)}</b><span>event delay</span></div>`:''}
+  </div>`;
+  if(best.evs.length){
+    html+=`<div class="warn-line">⚠ Route passes near ${best.evs.map(e=>e.title.split(" — ")[0]).join(", ")} — no clear detour among the alternatives; ~${eventDelayH(best.evs)}h delay priced in.</div>`;
+  } else if(rerouted){
+    html+=`<div class="warn-line" style="background:#f0faf5;border-color:#bfe6d2;color:var(--good)">✓ Rerouted to avoid ${direct.evs.map(e=>e.title.split(" — ")[0]).join(", ")} — saves ${rupee(saving)} vs the direct road.</div>`;
+  }
+  html+=`<div class="rr-break" style="margin-top:6px">
+    <span>run <b>${rupee(best.price.run)}</b></span>
+    <span>driver <b>${rupee(best.price.drv)}</b></span>
+    <span>tolls est <b>${rupee(best.price.toll)}</b></span></div>`;
+  if(evald.length>1){
+    html+=`<p class="sub" style="margin-top:12px">${evald.length} road options considered:</p>`;
+    evald.forEach((r,i)=>{ html+=`<div class="rr-break" style="padding:4px 0">
+      <span>${i===0?'★ ':''}${r.km.toFixed(0)} km</span><span>${r.hours.toFixed(1)} h</span>
+      ${r.evs.length?`<span class="pen">event +${rupee(r.pen)}</span>`:'<span style="color:var(--good)">clear</span>'}
+      <span><b>${rupee(r.price.total)}</b></span></div>`; });
+  }
+  document.getElementById("planResult").innerHTML=html;
+}
+function renderPlanTab(){
+  if(window._lastPlan){ drawPlanMap(window._lastPlan.evald, window._lastPlan.o, window._lastPlan.d); renderPlanResult(window._lastPlan.evald, window._lastPlan.o, window._lastPlan.d); }
+}
+
+/* ---- Fleet / batch ---- */
+function parseCSV(text){
+  return text.trim().split(/\r?\n/).map(l=>l.split(",").map(s=>s.trim())).filter(r=>r.length && r[0]);
+}
+function sampleCSV(){
+  return "origin,destination,vehicle\nChandigarh,Agra,truck\nMumbai,Pune,van\nDelhi,Jaipur,truck\nLucknow,Kanpur,van\nAhmedabad,Surat,truck\nJaipur,Udaipur,van";
+}
+function runBatchText(text){
+  let rows=parseCSV(text);
+  if(rows[0] && /origin/i.test(rows[0][0])) rows=rows.slice(1);
+  const res=rows.map(([oq,dq,veh])=>{
+    const o=gazLookup(oq||""), d=gazLookup(dq||""), vk=VCLASS[veh]?veh:COST.vehicle;
+    if(!o||!d) return { oq, dq, err:true };
+    const km=haversine(o,d)*1.3, hours=km/50, geom=sampleLine(o,d,24);
+    const evs=eventsOnGeom(geom), pen=eventPenalty(evs);
+    return { oq:o.name, dq:d.name, vk, km, hours, evs, pen, price:priceRoute(km,hours,vk,pen) };
+  });
+  renderFleetResult(res);
+}
+function renderFleetResult(res){
+  const ok=res.filter(r=>!r.err);
+  const totKm=ok.reduce((s,r)=>s+r.km,0), totCost=ok.reduce((s,r)=>s+r.price.total,0);
+  const atRisk=ok.filter(r=>r.evs.length).length, totPen=ok.reduce((s,r)=>s+r.pen,0);
+  let html=`<div class="mini-kpi" style="margin-top:14px">
+    <div><b>${ok.length}</b><span>shipments</span></div>
+    <div><b>${rupee(totCost)}</b><span>fleet cost</span></div>
+    <div><b>${totKm.toFixed(0)} km</b><span>total distance</span></div>
+    <div><b style="color:${atRisk?'var(--bad)':'var(--good)'}">${atRisk}</b><span>hit an event (+${rupee(totPen)})</span></div>
+  </div>`;
+  html+=`<table class="data"><thead><tr><th>From</th><th>To</th><th>Veh</th><th>km</th><th>Cost</th><th>Status</th></tr></thead><tbody>`;
+  res.forEach(r=>{
+    if(r.err){ html+=`<tr><td>${r.oq||"?"}</td><td>${r.dq||"?"}</td><td>—</td><td>—</td><td>—</td><td style="color:var(--bad)">unresolved</td></tr>`; return; }
+    html+=`<tr${r.evs.length?' class="fc"':''}><td>${r.oq}</td><td>${r.dq}</td><td>${VCLASS[r.vk].label.split(" ")[0]}</td>
+      <td>${r.km.toFixed(0)}</td><td>${rupee(r.price.total)}</td>
+      <td>${r.evs.length?'⚠ '+r.evs.map(e=>e.title.split(" — ")[0]).join(", "):'✓ clear'}</td></tr>`;
+  });
+  document.getElementById("fleetResult").innerHTML=html+"</tbody></table>";
+}
+function renderFleetTab(){ /* results render on demand */ }
+
+/* ---- Multi-stop VRP (nearest-neighbour + 2-opt) ---- */
+function vrp(pts){
+  const n=pts.length;
+  const M=Array.from({length:n},(_,i)=>pts.map(p=>haversine(pts[i],p)*1.3));
+  const seen=new Array(n).fill(false); let order=[0]; seen[0]=true;
+  for(let k=1;k<n;k++){ const last=order[order.length-1]; let best=-1,bd=Infinity;
+    for(let j=0;j<n;j++) if(!seen[j] && M[last][j]<bd){ bd=M[last][j]; best=j; }
+    order.push(best); seen[best]=true; }
+  const tourLen=o=>{ let s=0; for(let i=0;i<o.length-1;i++) s+=M[o[i]][o[i+1]]; return s+M[o[o.length-1]][o[0]]; };
+  let improved=true, guard=0;
+  while(improved && guard++<200){ improved=false;
+    for(let i=1;i<n-1;i++) for(let j=i+1;j<n;j++){
+      const cand=order.slice(0,i).concat(order.slice(i,j+1).reverse(), order.slice(j+1));
+      if(tourLen(cand) < tourLen(order)-1e-9){ order=cand; improved=true; }
+    }
+  }
+  return { order, km:tourLen(order) };
+}
+function runVRP(){
+  const names=val("stopsBox").split(/\r?\n/).map(s=>s.trim()).filter(Boolean);
+  const vk=val("vrpVehicle"), pts=[], miss=[];
+  names.forEach(n=>{ const g=gazLookup(n); if(g) pts.push(g); else miss.push(n); });
+  if(pts.length<3){ document.getElementById("vrpResult").innerHTML=`<div class="warn-line">Need at least 3 known cities. Unknown: ${miss.join(", ")||"—"}</div>`; document.getElementById("vrpMap").innerHTML=""; return; }
+  const sol=vrp(pts), order=sol.order;
+  const evset=new Set();
+  for(let i=0;i<order.length;i++){ const a=pts[order[i]], b=pts[order[(i+1)%order.length]];
+    eventsOnGeom(sampleLine(a,b,16)).forEach(e=>evset.add(e)); }
+  const pen=eventPenalty([...evset]), hours=sol.km/45, price=priceRoute(sol.km,hours,vk,pen);
+  const seq=order.map(i=>pts[i].name).concat(pts[order[0]].name);
+  document.getElementById("vrpResult").innerHTML=`<div class="mini-kpi" style="margin-top:14px">
+    <div><b>${rupee(price.total)}</b><span>round-trip cost</span></div>
+    <div><b>${sol.km.toFixed(0)} km</b><span>optimised distance</span></div>
+    <div><b>${hours.toFixed(1)} h</b><span>drive time</span></div>
+    ${pen>0?`<div><b style="color:var(--bad)">+${rupee(pen)}</b><span>event delay</span></div>`:''}</div>
+    <p class="sub" style="margin-top:8px">Optimised order: <b style="color:var(--ink)">${seq.join(" → ")}</b>${miss.length?` · skipped unknown: ${miss.join(", ")}`:""}</p>`;
+  const geom=[]; for(let i=0;i<=order.length;i++){ const p=pts[order[i%order.length]]; geom.push([p.lat,p.lng]); }
+  geoMap(document.getElementById("vrpMap"), [{ geom, src:"vrp" }], pts.map(p=>({lat:p.lat,lng:p.lng,label:p.name})), 300);
+}
+
+/* ---- Cost & events settings ---- */
+function renderCostDerived(){
+  document.getElementById("costDerived").innerHTML =
+    Object.keys(VCLASS).map(vk=>`<div><b>₹${perKm(vk).toFixed(1)}</b><span>${VCLASS[vk].label} · /km + driver time</span></div>`).join("");
+}
+function renderEvList(){
+  document.getElementById("evList").innerHTML = EVENTS.map(e=>`
+    <div class="ev-item">
+      <span style="width:11px;height:11px;border-radius:3px;flex:none;background:${e.active?C.orange:'var(--baseline)'}"></span>
+      <div><b style="font-size:12.5px">${e.title}</b>
+      <div class="sub">${e.delayH}h delay · r=${e.radiusKm}km · ${e.url!=="#"?`<a href="${e.url}" target="_blank" rel="noopener">${e.source}</a>`:e.source}</div></div>
+      <label class="toct"><input type="checkbox" ${e.active?'checked':''} data-ev="${e.id}"> active</label>
+    </div>`).join("");
+  document.querySelectorAll('#evList input[data-ev]').forEach(cb=>cb.addEventListener("change",()=>{
+    const e=EVENTS.find(x=>x.id===cb.dataset.ev); if(e){ e.active=cb.checked; renderEvList(); }
+  }));
+}
+async function addEvent(){
+  const city=val("evCity"), title=val("evTitle")||"Custom event", delayH=+val("evDelay")||2;
+  const st=document.getElementById("evStatus");
+  if(!city){ st.textContent="Enter a city."; return; }
+  st.textContent="Locating "+city+"…";
+  const g=await geocode(city);
+  if(!g){ st.textContent=`Couldn't locate “${city}”.`; return; }
+  EVENTS.push({ id:"usr"+Date.now(), title:title+" — "+g.name, lat:g.lat, lng:g.lng, radiusKm:8, delayH, active:true, source:"user-added", url:"#" });
+  document.getElementById("evCity").value=""; document.getElementById("evTitle").value="";
+  st.textContent="Added “"+g.name+"”.";
+  renderEvList();
+}
+function logRoute(o,d,best){
+  try{
+    const L=JSON.parse(localStorage.getItem("route_log")||"[]");
+    L.unshift({ t:Date.now(), o:o.name, d:d.name, km:Math.round(best.km), cost:Math.round(best.price.total), src:best.src });
+    localStorage.setItem("route_log", JSON.stringify(L.slice(0,25)));
+  }catch(e){}
+}
+function getLog(){ try{ return JSON.parse(localStorage.getItem("route_log")||"[]"); }catch(e){ return []; } }
+function renderLog(){
+  const L=getLog();
+  document.getElementById("logList").innerHTML = L.length
+    ? `<table class="data"><thead><tr><th>When</th><th>Route</th><th>km</th><th>Planned cost</th><th>Source</th></tr></thead><tbody>`+
+      L.map(r=>`<tr><td>${new Date(r.t).toLocaleString()}</td><td>${r.o} → ${r.d}</td><td>${r.km}</td><td>${rupee(r.cost)}</td><td>${r.src}</td></tr>`).join("")+
+      `</tbody></table>`
+    : `<p class="sub">No plans logged yet — run “Plan a route”.</p>`;
+}
+function renderSettingsTab(){
+  document.getElementById("cFuel").value=COST.fuel;
+  document.getElementById("cDriver").value=COST.driverPerHr;
+  document.getElementById("cIdle").value=COST.idlePerHr;
+  document.getElementById("cVehicle").value=COST.vehicle;
+  renderCostDerived(); renderEvList(); renderLog();
+}
+
+/* ---- sub-tab switching ---- */
+const RSUBS = {
+  scenario:"Freight run Chandigarh → Agra · reroute to cut cost when an event blocks the usual city",
+  plan:"Plan any origin → destination · event-aware, real-road routing",
+  fleet:"Batch-route shipments or optimise a multi-stop run",
+  settings:"Tune the cost model and disruption events",
+};
+function selectRtab(t){
+  state.rtab=t;
+  document.getElementById("pageTitle").textContent="Route Planner · Event-aware routing";
+  document.getElementById("pageSub").textContent=RSUBS[t];
+  document.querySelectorAll("#rSubnav button").forEach(b=>b.classList.toggle("active", b.dataset.t===t));
+  document.querySelectorAll(".rtab").forEach(elm=>elm.hidden = elm.id!=="rt-"+t);
+  if(t==="scenario") renderRouting();
+  else if(t==="plan") renderPlanTab();
+  else if(t==="fleet") renderFleetTab();
+  else if(t==="settings") renderSettingsTab();
+}
+
+document.getElementById("rSubnav").addEventListener("click", ev=>{ const b=ev.target.closest("button"); if(b) selectRtab(b.dataset.t); });
+document.getElementById("planGo").addEventListener("click", runPlan);
+document.getElementById("csvSample").addEventListener("click", ()=>runBatchText(sampleCSV()));
+document.getElementById("csvFile").addEventListener("change", ev=>{
+  const f=ev.target.files[0]; if(!f) return;
+  const rd=new FileReader(); rd.onload=()=>runBatchText(rd.result); rd.readAsText(f);
+});
+document.getElementById("vrpGo").addEventListener("click", runVRP);
+["cFuel","cDriver","cIdle","cVehicle"].forEach(id=>document.getElementById(id).addEventListener("input", ()=>{
+  COST.fuel=+val("cFuel")||COST.fuel; COST.driverPerHr=+val("cDriver")||0;
+  COST.idlePerHr=+val("cIdle")||0; COST.vehicle=val("cVehicle"); renderCostDerived();
+}));
+document.getElementById("evAdd").addEventListener("click", addEvent);
+
+/* ============================================================
    9. Nav + resize wiring
 ============================================================ */
 document.getElementById("navHome").addEventListener("click", showHome);
@@ -1719,7 +2212,7 @@ document.getElementById("navRoute").addEventListener("click", showRouting);
 
 function reflow(){
   if (state.view === "dash") renderAll();
-  else if (state.view === "route") renderRouting();
+  else if (state.view === "route") selectRtab(state.rtab || "scenario");
   else renderHome();
 }
 let rto;

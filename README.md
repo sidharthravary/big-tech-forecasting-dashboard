@@ -38,6 +38,33 @@ compiled from company reports.
 - Quarterly revenue by segment (stacked bars, history + forecast)
 - Gross-margin trend and forecast
 
+## Route Planner (Routing tab)
+
+An event-aware, cost-optimal freight routing planner — the third sidebar tab. It treats
+real-world disruptions (e.g. a political rally / road closure) as a congestion cost and
+reroutes to minimise total delivered cost. Four sub-tabs:
+
+- **Event scenario** — a worked Chandigarh → Agra example over a modelled regional road
+  graph. A real event (Delhi Monsoon Session of Parliament road restrictions, Jul 2026)
+  is priced as a congestion penalty; the planner picks the cheapest corridor by exhaustive
+  path search. Toggle the event and drag a delay-severity slider to watch the reroute
+  decision flip at its cost break-even point.
+- **Plan a route** — enter any origin/destination. Geocoded via **OpenStreetMap Nominatim**
+  and routed on **real roads via OSRM** (both keyless) when online, with an offline
+  haversine estimate as fallback. Checks each road alternative against the events layer and
+  recommends the cheapest, auto-detouring around disruptions.
+- **Fleet / batch upload** — upload a CSV of shipments (`origin,destination[,vehicle]`) for
+  batch pricing and event-risk flagging, or run the **multi-stop optimiser (VRP)** —
+  nearest-neighbour + 2-opt — to order a set of stops into the shortest round trip.
+- **Cost & events** — a configurable cost model (diesel price, driver/idle rates, vehicle
+  class → derived ₹/km) plus a **pluggable events layer** seeded from real traffic
+  advisories, and a localStorage **learning log** of planned routes.
+
+Cost model, distances, and tolls are illustrative; live traffic-incident and toll feeds are
+left as pluggable stubs because they require API keys / a backend. See "Making it better"
+in the project notes for the production roadmap (real directions API, live event feeds,
+VRP with constraints, learning loop).
+
 ## Design
 
 - UI/UX modeled on a clean purple SaaS dashboard (sidebar nav, rounded cards, soft shadows).
