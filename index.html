@@ -11,6 +11,7 @@
     --grid:#ececf2; --baseline:#d9d9e3; --ring:rgba(20,20,31,.08);
     --brand:#4a3aa7; --brand-2:#5b4bc4; --brand-wash:rgba(74,58,167,.10);
     --brand-track:#e6e2f6;
+    --s-green:#0e8c60; --s-violet:#4a3aa7; --s-orange:#eb6834;
     --good:#0a7a3d; --bad:#c23b3b;
     --fc-tint:#f3f2f8;
     --radius:16px;
@@ -184,6 +185,49 @@
 
   svg text{font-family:inherit;}
   .footer-note{color:var(--muted); font-size:12px; text-align:center; margin-top:6px; line-height:1.7;}
+
+  /* ---------- route planner ---------- */
+  .evt-banner{
+    display:flex; gap:12px; align-items:flex-start;
+    background:#fff4ef; border:1px solid #f6d3c2; border-radius:var(--radius);
+    padding:14px 18px; margin-bottom:20px;
+  }
+  .evt-banner .ico{
+    width:30px;height:30px;border-radius:9px;background:var(--s-orange);color:#fff;flex:none;
+    display:grid;place-items:center;font-weight:700;
+  }
+  .evt-banner b{font-size:13.5px;}
+  .evt-banner p{font-size:12.5px;color:var(--ink-2);margin-top:2px;}
+  .evt-banner a{color:var(--s-orange);}
+
+  .route-row{
+    border:1px solid var(--grid); border-radius:12px; padding:13px 15px; margin-bottom:12px;
+  }
+  .route-row.best{border-color:var(--s-green); background:#f0faf5;}
+  .route-row.avoid{background:#fdf5f1;}
+  .rr-top{display:flex; align-items:center; justify-content:space-between; gap:10px; margin-bottom:8px;}
+  .rr-name{font-size:13.5px; font-weight:650;}
+  .rr-badge{font-size:10.5px; font-weight:700; letter-spacing:.4px; padding:2px 8px; border-radius:99px;}
+  .rr-badge.best{background:var(--s-green); color:#fff;}
+  .rr-badge.avoid{background:var(--s-orange); color:#fff;}
+  .rr-total{font-size:17px; font-weight:700; font-variant-numeric:tabular-nums;}
+  .rr-path{display:flex; flex-wrap:wrap; gap:4px; align-items:center; margin-bottom:8px;}
+  .rr-chip{font-size:11px; background:var(--bg); border:1px solid var(--ring); border-radius:6px; padding:1px 7px; color:var(--ink-2);}
+  .rr-chip.evt{background:#fdeae0; border-color:#f3c3aa; color:#b64a1c;}
+  .rr-arrow{color:var(--muted); font-size:11px;}
+  .rr-break{display:flex; flex-wrap:wrap; gap:14px; font-size:11.5px; color:var(--muted); font-variant-numeric:tabular-nums;}
+  .rr-break b{color:var(--ink-2); font-weight:600;}
+  .rr-break .pen{color:var(--bad); font-weight:600;}
+
+  .plan-flex{display:flex; flex-wrap:wrap; gap:22px; align-items:center;}
+  .plan-lead{flex:1; min-width:260px; font-size:14px; line-height:1.65; color:var(--ink-2);}
+  .plan-lead b{color:var(--ink);}
+  .plan-save{
+    text-align:center; padding:14px 22px; border-radius:14px;
+    background:var(--brand); color:#fff; min-width:180px;
+  }
+  .plan-save .v{font-size:30px; font-weight:700; letter-spacing:-.5px;}
+  .plan-save .l{font-size:12px; opacity:.85; margin-top:2px;}
 </style>
 </head>
 <body>
@@ -197,8 +241,8 @@
     <button class="nav-btn" id="navDash" title="Forecast">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 17l6-6 4 4 8-8"/><path d="M15 7h6v6"/></svg>
     </button>
-    <button class="nav-btn" title="Reports">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="8" height="8" rx="1.5"/><rect x="13" y="3" width="8" height="8" rx="1.5"/><rect x="3" y="13" width="8" height="8" rx="1.5"/><rect x="13" y="13" width="8" height="8" rx="1.5"/></svg>
+    <button class="nav-btn" id="navRoute" title="Route planner">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="6" cy="19" r="2.4"/><circle cx="18" cy="5" r="2.4"/><path d="M8.5 19H15a3.5 3.5 0 0 0 0-7H9a3.5 3.5 0 0 1 0-7h6.4"/></svg>
     </button>
     <button class="nav-btn" title="Alerts">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8a6 6 0 1 0-12 0c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M10.3 21a2 2 0 0 0 3.4 0"/></svg>
@@ -324,6 +368,52 @@
       </div>
 
       <p class="footer-note" id="footNote"></p>
+    </div>
+
+    <!-- ================= ROUTE PLANNER VIEW ================= -->
+    <div id="routeView" hidden>
+      <div class="filters">
+        <span class="flabel">Scenario</span>
+        <div class="seg" id="segEvent">
+          <button data-v="1" class="active">Rally / event ON</button>
+          <button data-v="0">No event</button>
+        </div>
+        <span class="flabel">Est. delay through Delhi</span>
+        <input id="sevRange" type="range" min="0" max="8" step="0.5" value="4" style="accent-color:var(--brand);width:150px">
+        <span id="sevVal" class="flabel" style="min-width:46px;color:var(--ink);font-weight:600">4.0 h</span>
+      </div>
+
+      <div class="evt-banner" id="evtBanner"></div>
+
+      <section class="kpis" id="rKpis"></section>
+
+      <div class="grid2">
+        <section class="card">
+          <div class="card-head"><div>
+            <h2>Route network — Chandigarh → Agra</h2>
+            <p class="sub" id="rMapSub"></p>
+          </div></div>
+          <div class="legend" id="rLegend"></div>
+          <div id="routeMap"></div>
+        </section>
+        <section class="card">
+          <div class="card-head"><div>
+            <h2>Route options &amp; delivered cost</h2>
+            <p class="sub">Every corridor priced end-to-end · ranked cheapest first</p>
+          </div></div>
+          <div id="routeList"></div>
+        </section>
+      </div>
+
+      <section class="card">
+        <div class="card-head"><div>
+          <h2>Recommended plan</h2>
+          <p class="sub" id="rPlanSub"></p>
+        </div></div>
+        <div id="routePlan"></div>
+      </section>
+
+      <p class="footer-note" id="rFoot"></p>
     </div>
   </div>
 </div>
@@ -1231,14 +1321,22 @@ function renderAll(){
     `forecasts computed live in log-space and are illustrative, not investment advice.`;
 }
 
+function setNav(active){
+  ["navHome","navDash","navRoute"].forEach(id=>
+    document.getElementById(id).classList.toggle("active", id===active));
+}
+function setView(name){
+  document.getElementById("homeView").hidden  = name!=="home";
+  document.getElementById("dashView").hidden  = name!=="dash";
+  document.getElementById("routeView").hidden = name!=="route";
+}
+
 function showHome(){
   state.view = "home";
-  document.getElementById("homeView").hidden = false;
-  document.getElementById("dashView").hidden = true;
+  setView("home");
   document.getElementById("pageTitle").textContent = "Big Tech · Forecasting Dashboard";
   document.getElementById("pageSub").textContent = "10 of the world's largest tech companies · pick one to open its live forecast";
-  document.getElementById("navHome").classList.add("active");
-  document.getElementById("navDash").classList.remove("active");
+  setNav("navHome");
   renderHome();
 }
 
@@ -1246,18 +1344,12 @@ function openCompany(key){
   state.company = key;
   state.view = "dash";
   const co = cur();
-  document.getElementById("homeView").hidden = true;
-  document.getElementById("dashView").hidden = false;
+  setView("dash");
   document.getElementById("pageTitle").textContent = `${co.name} · Forecasting Dashboard`;
   document.getElementById("pageSub").textContent = co.sub;
-  document.getElementById("navHome").classList.remove("active");
-  document.getElementById("navDash").classList.add("active");
+  setNav("navDash");
   renderAll();
 }
-
-document.getElementById("navHome").addEventListener("click", showHome);
-document.getElementById("btnBack").addEventListener("click", showHome);
-document.getElementById("navDash").addEventListener("click", ()=> openCompany(state.company));
 
 function wireSeg(id, key, parse){
   document.getElementById(id).addEventListener("click", ev=>{
@@ -1279,8 +1371,359 @@ document.getElementById("btnTable").addEventListener("click", function(){
   this.textContent = t.hidden ? "View data" : "Hide data";
 });
 
+/* ============================================================
+   8. ROUTE PLANNER — event-aware least-cost routing
+   Scenario: freight run Chandigarh -> Agra. The usual corridor
+   runs through Delhi; a political event there (Monsoon Session of
+   Parliament road closures, from 20 Jul 2026) adds congestion /
+   idling cost, so the planner reroutes to save money.
+============================================================ */
+const RP = {
+  perKm: 35,            // ₹/km all-in running cost (diesel + driver + wear)
+  delayCostPerHr: 900,  // ₹/hr of congestion (idling fuel + driver + schedule risk)
+  avgKmph: 55,
+  origin: "chandigarh",
+  dest: "agra",
+  event: true,
+  severity: 4,          // estimated through-traffic delay at the event city (hours)
+};
+const INR = new Intl.NumberFormat("en-IN",{maximumFractionDigits:0});
+function rupee(v){ return "₹" + INR.format(Math.round(v)); }
+
+const RNODES = {
+  chandigarh:{ name:"Chandigarh", lat:30.73, lon:76.78, role:"origin" },
+  ambala:    { name:"Ambala",     lat:30.38, lon:76.83 },
+  rohtak:    { name:"Rohtak",     lat:28.90, lon:76.58, hub:true },
+  sonipat:   { name:"Sonipat",    lat:28.99, lon:77.02 },
+  delhi:     { name:"Delhi",      lat:28.61, lon:77.23, event:true },
+  gurugram:  { name:"Gurugram",   lat:28.46, lon:77.00 },
+  palwal:    { name:"Palwal",     lat:28.15, lon:77.33 },
+  jaipur:    { name:"Jaipur",     lat:26.91, lon:75.79 },
+  mathura:   { name:"Mathura",    lat:27.49, lon:77.67 },
+  agra:      { name:"Agra",       lat:27.18, lon:78.01, role:"dest" },
+};
+// [a, b, km, toll ₹]  — approximate real road distances
+const REDGES = [
+  ["chandigarh","ambala", 46,  60],
+  ["ambala","sonipat",   150, 350],
+  ["ambala","rohtak",    160, 300],
+  ["sonipat","delhi",     45, 120],
+  ["sonipat","palwal",   135, 620],   // KMP / Western Peripheral Expressway
+  ["rohtak","delhi",      70, 150],
+  ["rohtak","gurugram",   50, 120],
+  ["gurugram","palwal",   55, 260],
+  ["delhi","palwal",      60, 180],
+  ["delhi","mathura",    145, 400],   // Yamuna Expressway
+  ["palwal","mathura",    85, 300],
+  ["mathura","agra",      58, 260],
+  ["rohtak","jaipur",    230, 520],
+  ["jaipur","agra",      240, 560],
+  ["delhi","jaipur",     270, 600],
+];
+const RADJ = {};
+for (const k in RNODES) RADJ[k] = [];
+for (const [a,b,km,toll] of REDGES){ RADJ[a].push({to:b,km,toll}); RADJ[b].push({to:a,km,toll}); }
+function edgeFor(a,b){ return RADJ[a].find(e=>e.to===b); }
+function nodePenalty(id){
+  if (!RP.event || !RNODES[id].event) return 0;
+  return Math.round(RP.severity * RP.delayCostPerHr);
+}
+
+/* enumerate all simple paths origin->dest (graph is tiny) */
+function allPaths(){
+  const out = [], seen = {};
+  (function dfs(node, path){
+    if (node === RP.dest){ out.push(path.slice()); return; }
+    seen[node] = true;
+    for (const e of RADJ[node]) if (!seen[e.to]){ path.push(e.to); dfs(e.to, path); path.pop(); }
+    seen[node] = false;
+  })(RP.origin, [RP.origin]);
+  return out;
+}
+function costPath(path){
+  let km=0, run=0, toll=0, pen=0, delayH=0;
+  for (let i=0;i<path.length-1;i++){
+    const e = edgeFor(path[i], path[i+1]);
+    km += e.km; run += e.km*RP.perKm; toll += e.toll;
+  }
+  for (let i=1;i<path.length-1;i++){
+    pen += nodePenalty(path[i]);
+    if (RP.event && RNODES[path[i]].event) delayH += RP.severity;
+  }
+  const passesEvent = path.slice(1,-1).some(n=>RNODES[n].event);
+  return { path, km, run, toll, pen, total:run+toll+pen, passesEvent,
+           driveH: km/RP.avgKmph, timeH: km/RP.avgKmph + delayH };
+}
+function cheapestWhere(pred){
+  return allPaths().map(costPath).filter(pred).sort((a,b)=>a.total-b.total)[0] || null;
+}
+function planRoutes(){
+  const viaDelhi  = cheapestWhere(r=> r.path.includes("delhi"));
+  const viaRohtak = cheapestWhere(r=> r.path.includes("rohtak") && !r.path.includes("delhi"));
+  const viaKMP    = cheapestWhere(r=> r.path.includes("sonipat") && r.path.includes("palwal") && !r.path.includes("delhi"));
+  const cands = [];
+  if (viaDelhi)  cands.push({ ...viaDelhi,  label:"Via Delhi (usual route)" });
+  if (viaRohtak) cands.push({ ...viaRohtak, label:"Via Rohtak bypass" });
+  if (viaKMP)    cands.push({ ...viaKMP,    label:"Via KMP Expressway" });
+  cands.sort((a,b)=>a.total-b.total);
+  const optimal = cands[0];
+  const usual   = viaDelhi;               // what you'd normally drive
+  return { cands, optimal, usual };
+}
+
+/* ---- projection ---- */
+function rproj(W,H,pad){
+  const lons=Object.values(RNODES).map(n=>n.lon), lats=Object.values(RNODES).map(n=>n.lat);
+  const lo=Math.min(...lons), hi=Math.max(...lons), la=Math.min(...lats), lb=Math.max(...lats);
+  return { x:lon=>pad+(lon-lo)/(hi-lo)*(W-2*pad), y:lat=>pad+(lb-lat)/(lb-la)*(H-2*pad) };
+}
+function pathEdgeSet(path){
+  const s=new Set();
+  for (let i=0;i<path.length-1;i++) s.add([path[i],path[i+1]].sort().join("|"));
+  return s;
+}
+
+/* ---- renderers ---- */
+function renderRouteMap(plan){
+  const box = document.getElementById("routeMap");
+  box.innerHTML = "";
+  const W = Math.max(300, box.clientWidth), H = 400, pad = 46;
+  const p = rproj(W,H,pad);
+  const svg = svgEl("svg",{ width:W, height:H, viewBox:`0 0 ${W} ${H}` });
+  svg.style.display="block"; box.appendChild(svg);
+
+  const optSet = pathEdgeSet(plan.optimal.path);
+  const usualSet = pathEdgeSet(plan.usual.path);
+  const optimalAvoidsDelhi = !plan.optimal.path.includes("delhi");
+
+  // faint base network
+  for (const [a,b,km] of REDGES){
+    svg.appendChild(svgEl("line",{ x1:p.x(RNODES[a].lon), y1:p.y(RNODES[a].lat),
+      x2:p.x(RNODES[b].lon), y2:p.y(RNODES[b].lat), stroke:C.grid, "stroke-width":2 }));
+  }
+  // avoided usual route (dashed orange) — only when different from optimal
+  if (optimalAvoidsDelhi){
+    for (const key of usualSet){
+      if (optSet.has(key)) continue;
+      const [a,b]=key.split("|");
+      svg.appendChild(svgEl("line",{ x1:p.x(RNODES[a].lon), y1:p.y(RNODES[a].lat),
+        x2:p.x(RNODES[b].lon), y2:p.y(RNODES[b].lat), stroke:C.orange, "stroke-width":3,
+        "stroke-dasharray":"6 5", "stroke-linecap":"round", opacity:.85 }));
+    }
+  }
+  // optimal route (solid green)
+  for (const key of optSet){
+    const [a,b]=key.split("|");
+    svg.appendChild(svgEl("line",{ x1:p.x(RNODES[a].lon), y1:p.y(RNODES[a].lat),
+      x2:p.x(RNODES[b].lon), y2:p.y(RNODES[b].lat), stroke:C.green, "stroke-width":4.5,
+      "stroke-linecap":"round" }));
+  }
+  // edge distance labels (optimal + avoided only, to stay readable)
+  for (const [a,b,km] of REDGES){
+    const key=[a,b].sort().join("|");
+    const show = optSet.has(key) || (optimalAvoidsDelhi && usualSet.has(key));
+    if (!show) continue;
+    const mx=(p.x(RNODES[a].lon)+p.x(RNODES[b].lon))/2, my=(p.y(RNODES[a].lat)+p.y(RNODES[b].lat))/2;
+    const t=svgEl("text",{ x:mx, y:my-4, "text-anchor":"middle","font-size":10, fill:C.muted,
+      style:"font-variant-numeric:tabular-nums" });
+    t.textContent = km+" km"; svg.appendChild(t);
+  }
+  // nodes
+  for (const id in RNODES){
+    const n = RNODES[id], cx=p.x(n.lon), cy=p.y(n.lat);
+    const isEnd = n.role==="origin"||n.role==="dead"||n.role==="dest";
+    const eventOn = RP.event && n.event;
+    if (eventOn){
+      svg.appendChild(svgEl("circle",{ cx, cy, r:15, fill:"none", stroke:C.orange, "stroke-width":2, opacity:.5 }));
+    }
+    const r = isEnd?8:6.5;
+    const fill = eventOn ? C.orange : (isEnd ? C.violet : "#fff");
+    const stroke = eventOn ? C.orange : (isEnd ? C.violet : C.violet);
+    const dot = svgEl("circle",{ cx, cy, r, fill, stroke, "stroke-width":2.5 });
+    svg.appendChild(dot);
+    // label
+    const rightSide = cx < W-90;
+    const lx = rightSide ? cx+11 : cx-11;
+    const anchor = rightSide ? "start" : "end";
+    let name = n.name + (n.role==="origin"?" (start)":n.role==="dest"?" (end)":"");
+    const lab = svgEl("text",{ x:lx, y:cy+4, "text-anchor":anchor, "font-size":11.5,
+      "font-weight":(isEnd||eventOn)?600:400, fill:eventOn?C.orange:C.ink });
+    lab.textContent = name; svg.appendChild(lab);
+    if (eventOn){
+      const w=svgEl("text",{ x:cx, y:cy-19, "text-anchor":"middle","font-size":12 });
+      w.textContent="⚠"; svg.appendChild(w);
+    }
+    // hover
+    const hit = svgEl("circle",{ cx, cy, r:16, fill:"transparent" });
+    hit.addEventListener("mousemove", ev=>{
+      let html = `<div class="t-title">${n.name}</div>`;
+      if (n.role) html += `<div class="t-row">${n.role==="origin"?"Origin":"Destination"}</div>`;
+      if (eventOn) html += `<div class="t-row" style="color:#ffb59a">Event congestion +${rupee(nodePenalty(id))} · ~${RP.severity}h delay</div>`;
+      showTip(html, ev.clientX, ev.clientY);
+    });
+    hit.addEventListener("mouseleave", hideTip);
+    svg.appendChild(hit);
+  }
+
+  document.getElementById("rLegend").innerHTML = `
+    <span class="key"><span class="sw line" style="background:${C.green}"></span>Recommended route</span>` +
+    (optimalAvoidsDelhi ? `<span class="key"><span class="sw line" style="background:${C.orange}"></span>Usual route (avoided)</span>` : "") +
+    (RP.event ? `<span class="key"><span class="sw" style="background:${C.orange}"></span>Event / congestion</span>` : "") +
+    `<span class="key"><span class="sw" style="background:${C.violet}"></span>Start / end</span>`;
+
+  document.getElementById("rMapSub").textContent = RP.event
+    ? `Political event in Delhi active — planner is routing around it`
+    : `No event — planner takes the lowest-cost corridor`;
+}
+
+function renderRouteList(plan){
+  const box = document.getElementById("routeList");
+  box.innerHTML = "";
+  plan.cands.forEach((r,i)=>{
+    const isBest = r===plan.optimal;
+    const isAvoid = RP.event && r.passesEvent && !isBest;
+    const chips = r.path.map((id,idx)=>{
+      const evt = RP.event && RNODES[id].event;
+      return `${idx?'<span class="rr-arrow">›</span>':''}<span class="rr-chip${evt?' evt':''}">${RNODES[id].name}</span>`;
+    }).join("");
+    const row = el("div", `route-row${isBest?" best":isAvoid?" avoid":""}`);
+    row.innerHTML = `
+      <div class="rr-top">
+        <span class="rr-name">${r.label}</span>
+        ${isBest?'<span class="rr-badge best">OPTIMAL</span>':isAvoid?'<span class="rr-badge avoid">CONGESTED</span>':''}
+        <span style="flex:1"></span>
+        <span class="rr-total">${rupee(r.total)}</span>
+      </div>
+      <div class="rr-path">${chips}</div>
+      <div class="rr-break">
+        <span><b>${r.km}</b> km</span>
+        <span>run <b>${rupee(r.run)}</b></span>
+        <span>tolls <b>${rupee(r.toll)}</b></span>
+        ${r.pen>0?`<span class="pen">event +${rupee(r.pen)}</span>`:''}
+        <span>ETA <b>${r.timeH.toFixed(1)} h</b></span>
+      </div>`;
+    box.appendChild(row);
+  });
+}
+
+function renderRouteKpis(plan){
+  const box = document.getElementById("rKpis");
+  box.innerHTML = "";
+  const opt = plan.optimal, usual = plan.usual;
+  const saving = usual.total - opt.total;
+  const savePct = saving/usual.total*100;
+  const extraKm = opt.km - usual.km;
+  const timeSaved = usual.timeH - opt.timeH;
+  const reroute = !opt.path.includes("delhi") && RP.event;
+
+  const tiles = [
+    { label:"Recommended route cost", value:rupee(opt.total),
+      foot:`<span class="sub">${opt.label} · ${opt.km} km</span>` },
+    { label:"Saving vs driving through Delhi", value:rupee(Math.max(0,saving)),
+      foot: saving>1 ? `<span class="delta up">▲ ${savePct.toFixed(1)}% cheaper</span>`
+                     : `<span class="sub">usual route already optimal</span>` },
+    { label:"Extra distance to bypass", value:(extraKm>=0?"+":"")+extraKm+" km",
+      foot:`<span class="sub">${reroute?"longer, but avoids the jam":"—"}</span>` },
+    { label:"Time saved", value:(timeSaved>0?timeSaved.toFixed(1):"0.0")+" h",
+      foot:`<span class="sub">${RP.event?`~${RP.severity} h Delhi delay dodged`:"no delay"}</span>` },
+  ];
+  for (const t of tiles){
+    const k = el("div","kpi");
+    k.innerHTML = `<div class="label">${t.label}</div>
+      <div class="row"><div><div class="value">${t.value}</div>${t.foot}</div></div>`;
+    box.appendChild(k);
+  }
+}
+
+function renderRoutePlan(plan){
+  const opt = plan.optimal, usual = plan.usual;
+  const saving = usual.total - opt.total, savePct = saving/usual.total*100;
+  const reroute = !opt.path.includes("delhi") && RP.event;
+  const lead = document.getElementById("routePlan");
+  document.getElementById("rPlanSub").textContent = reroute
+    ? "Event detected on the usual corridor — here's the cost-optimal alternative"
+    : "Conditions are clear on the usual corridor";
+
+  if (reroute){
+    lead.innerHTML = `<div class="plan-flex">
+      <div class="plan-lead">
+        A political event is disrupting <b>Delhi</b>, the city your usual
+        Chandigarh→Agra route passes through. Driving it now would mean about
+        <b>${RP.severity} hours</b> of congestion and <b>${rupee(usual.pen)}</b> in idling &amp; detour cost.
+        <br><br>
+        <b>Recommendation:</b> reroute <b>${opt.label.replace("Via ","via ")}</b>
+        (${opt.path.map(n=>RNODES[n].name).join(" → ")}). It is only
+        <b>${opt.km-usual.km} km longer</b> but skips the jam entirely, cutting the
+        delivered cost from <b>${rupee(usual.total)}</b> to <b>${rupee(opt.total)}</b>
+        and arriving about <b>${(usual.timeH-opt.timeH).toFixed(1)} h</b> sooner.
+      </div>
+      <div class="plan-save"><div class="v">${rupee(saving)}</div><div class="l">saved · ${savePct.toFixed(0)}% lower cost</div></div>
+    </div>`;
+  } else {
+    lead.innerHTML = `<div class="plan-lead">
+      No disruptions on the corridor. The lowest-cost route is the usual one —
+      <b>${opt.path.map(n=>RNODES[n].name).join(" → ")}</b> —
+      at <b>${rupee(opt.total)}</b> over ${opt.km} km. Toggle the rally scenario on to
+      see the planner reroute to save cost.</div>`;
+  }
+  document.getElementById("rFoot").innerHTML =
+    `Scenario grounded in a real event — Delhi Traffic Police restrictions for the Monsoon Session of Parliament (from 20 Jul 2026). ` +
+    `Road network, distances, tolls and the ₹${RP.perKm}/km cost basis are modelled for illustration · least-cost path chosen by exhaustive search over the corridor graph.`;
+}
+
+function renderRouting(){
+  const plan = planRoutes();
+  document.getElementById("evtBanner").innerHTML = RP.event ? `
+    <div class="ico">!</div>
+    <div><b>Live scenario · Political event in Delhi</b>
+    <p>Delhi Traffic Police have restricted central-Delhi roads for the Monsoon Session of Parliament (from 20 Jul 2026),
+    causing heavy congestion for through-traffic. The planner treats this as an added cost on any route passing through Delhi.</p></div>`
+    : `<div class="ico" style="background:var(--s-green)">✓</div>
+       <div><b>No active event</b><p>Corridor is clear — the planner picks the plain lowest-cost route.</p></div>`;
+  renderRouteKpis(plan);
+  renderRouteMap(plan);
+  renderRouteList(plan);
+  renderRoutePlan(plan);
+}
+
+function showRouting(){
+  state.view = "route";
+  setView("route");
+  document.getElementById("pageTitle").textContent = "Route Planner · Event-aware routing";
+  document.getElementById("pageSub").textContent = "Freight run Chandigarh → Agra · reroute to cut cost when an event blocks the usual city";
+  setNav("navRoute");
+  renderRouting();
+}
+
+/* ---- routing controls ---- */
+document.getElementById("segEvent").addEventListener("click", ev=>{
+  const b = ev.target.closest("button"); if(!b) return;
+  document.querySelectorAll("#segEvent button").forEach(x=>x.classList.remove("active"));
+  b.classList.add("active");
+  RP.event = b.dataset.v === "1";
+  renderRouting();
+});
+document.getElementById("sevRange").addEventListener("input", ev=>{
+  RP.severity = +ev.target.value;
+  document.getElementById("sevVal").textContent = RP.severity.toFixed(1)+" h";
+  if (RP.event) renderRouting();
+});
+
+/* ============================================================
+   9. Nav + resize wiring
+============================================================ */
+document.getElementById("navHome").addEventListener("click", showHome);
+document.getElementById("btnBack").addEventListener("click", showHome);
+document.getElementById("navDash").addEventListener("click", ()=> openCompany(state.company));
+document.getElementById("navRoute").addEventListener("click", showRouting);
+
+function reflow(){
+  if (state.view === "dash") renderAll();
+  else if (state.view === "route") renderRouting();
+  else renderHome();
+}
 let rto;
-window.addEventListener("resize", ()=>{ clearTimeout(rto); rto = setTimeout(renderAll, 150); });
+window.addEventListener("resize", ()=>{ clearTimeout(rto); rto = setTimeout(reflow, 150); });
 showHome();
 </script>
 </body>
