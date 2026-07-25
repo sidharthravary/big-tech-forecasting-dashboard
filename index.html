@@ -497,19 +497,22 @@
           <section class="card">
             <div class="card-head"><div>
               <h2>Multi-stop optimiser (VRP)</h2>
-              <p class="sub">First line = depot, one stop per line · nearest-neighbour + 2-opt</p>
+              <p class="sub">Depot first, then <code>City[, demand[, by-hour]]</code> per line · capacity splits across vehicles</p>
             </div></div>
             <div class="field"><textarea id="stopsBox">Delhi
-Jaipur
-Agra
-Mathura
-Rohtak
-Ludhiana</textarea></div>
+Jaipur, 8, 6
+Agra, 5
+Mathura, 4, 5
+Rohtak, 6
+Ludhiana, 7
+Amritsar, 5
+Jodhpur, 9</textarea></div>
             <div class="row-2">
               <div class="field"><label>Vehicle</label><select id="vrpVehicle">
                 <option value="truck">Truck (HCV)</option><option value="van">Van (LCV)</option><option value="car">Car</option></select></div>
-              <div class="field"><label>&nbsp;</label><button class="btn-primary" id="vrpGo">Optimise stop order</button></div>
+              <div class="field"><label>Capacity / vehicle (0 = one vehicle)</label><input id="vrpCap" type="number" value="20"></div>
             </div>
+            <button class="btn-primary" id="vrpGo">Optimise routes</button>
             <div id="vrpResult"></div>
             <div id="vrpMap"></div>
           </section>
@@ -2029,7 +2032,7 @@ function geoMap(container, routes, marks, height){
     const rt=routes[i], best=i===0;
     const pts=rt.geom.map(c=>[X(c[1]),Y(c[0])]);
     svg.appendChild(svgEl("path",{ d:linePath(pts), fill:"none",
-      stroke:best?C.green:C.grid, "stroke-width":best?4:2.5, "stroke-linecap":"round", "stroke-linejoin":"round", opacity:best?1:.9 }));
+      stroke:rt.color||(best?C.green:C.grid), "stroke-width":rt.color?3.5:(best?4:2.5), "stroke-linecap":"round", "stroke-linejoin":"round", opacity:rt.color?.95:(best?1:.9) }));
   }
   marks.forEach(m=>{
     svg.appendChild(svgEl("circle",{ cx:X(m.lng), cy:Y(m.lat), r:6.5, fill:C.violet, stroke:"#fff", "stroke-width":2 }));
@@ -2047,7 +2050,16 @@ async function runPlan(){
   if(!o){ status(`Couldn't find “${oq}”.`); return; }
   if(!d){ status(`Couldn't find “${dq}”.`); return; }
   status("Finding roads…");
-  const routes = (await roadRoutes(o,d)).map((rt,i)=>({ ...rt, idx:i }));
+  let routes = (await roadRoutes(o,d)).map((rt,i)=>({ ...rt, idx:i }));
+  // if the shortest road runs through an active event, force detours around it
+  const hit = eventsOnGeom(routes[0].geom);
+  if(hit.length){
+    status("Event on the direct road — searching detours…");
+    for(const ev of hit){
+      const dets = await detourVia(o,d,ev);
+      dets.forEach((rt,i)=> routes.push({ ...rt, idx:100+routes.length+i }));
+    }
+  }
   const evald = routes.map(rt=>{
     const evs=eventsOnGeom(rt.geom), pen=eventPenalty(evs);
     return { ...rt, evs, pen, price:priceRoute(rt.km,rt.hours,vk,pen) };
@@ -2057,6 +2069,35 @@ async function runPlan(){
   renderPlanResult(evald,o,d);
   logRoute(o,d,evald[0]);
   status("");
+}
+/* build forced detours around an event by routing via a waypoint offset
+   perpendicular to the origin→dest line, just beyond the event radius */
+async function detourVia(o, d, ev){
+  const dx=d.lng-o.lng, dy=d.lat-o.lat, len=Math.hypot(dx,dy)||1;
+  const px=-dy/len, py=dx/len;                 // perpendicular unit vector
+  const offDeg=(ev.radiusKm*1.9)/111;          // km → degrees
+  const out=[];
+  for(const s of [1,-1]){
+    const wp={ lat:ev.lat+py*offDeg*s, lng:ev.lng+px*offDeg*s };
+    try{
+      const [r1,r2]=await Promise.all([
+        fetchT(`https://router.project-osrm.org/route/v1/driving/${o.lng},${o.lat};${wp.lng},${wp.lat}?overview=full&geometries=geojson`),
+        fetchT(`https://router.project-osrm.org/route/v1/driving/${wp.lng},${wp.lat};${d.lng},${d.lat}?overview=full&geometries=geojson`),
+      ]);
+      const j1=await r1.json(), j2=await r2.json();
+      const a=j1.routes&&j1.routes[0], b=j2.routes&&j2.routes[0];
+      if(a&&b){
+        out.push({ km:(a.distance+b.distance)/1000, hours:(a.duration+b.duration)/3600,
+          geom:a.geometry.coordinates.map(c=>[c[1],c[0]]).concat(b.geometry.coordinates.map(c=>[c[1],c[0]])),
+          src:"osrm", detour:true });
+        continue;
+      }
+    }catch(e){}
+    // offline fallback: straight via-waypoint estimate
+    const km=(haversine(o,wp)+haversine(wp,d))*1.3;
+    out.push({ km, hours:km/50, geom:sampleLine(o,wp,12).concat(sampleLine(wp,d,12)), src:"estimate", detour:true });
+  }
+  return out;
 }
 function drawPlanMap(evald,o,d){
   geoMap(document.getElementById("planMap"), evald,
@@ -2155,25 +2196,62 @@ function vrp(pts){
   }
   return { order, km:tourLen(order) };
 }
+/* sweep-cluster stops into capacity-limited vehicle routes, then 2-opt each */
+function vrpCapacity(pts, demands, cap){
+  const depot=pts[0], stops=[];
+  for(let i=1;i<pts.length;i++) stops.push({ i, ang:Math.atan2(pts[i].lat-depot.lat, pts[i].lng-depot.lng), dem:demands[i] });
+  stops.sort((a,b)=>a.ang-b.ang);
+  const groups=[]; let cur=[], load=0;
+  for(const s of stops){
+    if(load+s.dem>cap && cur.length){ groups.push(cur); cur=[]; load=0; }
+    cur.push(s); load+=s.dem;
+  }
+  if(cur.length) groups.push(cur);
+  return groups.map(g=>{
+    const idxs=[0,...g.map(s=>s.i)], sub=idxs.map(i=>pts[i]), sol=vrp(sub);
+    return { order: sol.order.map(k=>idxs[k]), km: sol.km, load: g.reduce((a,s)=>a+s.dem,0) };
+  });
+}
 function runVRP(){
-  const names=val("stopsBox").split(/\r?\n/).map(s=>s.trim()).filter(Boolean);
-  const vk=val("vrpVehicle"), pts=[], miss=[];
-  names.forEach(n=>{ const g=gazLookup(n); if(g) pts.push(g); else miss.push(n); });
+  const lines=val("stopsBox").split(/\r?\n/).map(s=>s.trim()).filter(Boolean);
+  const vk=val("vrpVehicle"), cap=+val("vrpCap")||0;
+  const pts=[], demands=[], byH=[], miss=[];
+  lines.forEach((line,i)=>{
+    const parts=line.split(",").map(s=>s.trim());
+    const g=gazLookup(parts[0]);
+    if(!g){ miss.push(parts[0]); return; }
+    pts.push(g); demands.push(i===0?0:(+parts[1]||1)); byH.push(parts[2]?+parts[2]:null);
+  });
   if(pts.length<3){ document.getElementById("vrpResult").innerHTML=`<div class="warn-line">Need at least 3 known cities. Unknown: ${miss.join(", ")||"—"}</div>`; document.getElementById("vrpMap").innerHTML=""; return; }
-  const sol=vrp(pts), order=sol.order;
-  const evset=new Set();
-  for(let i=0;i<order.length;i++){ const a=pts[order[i]], b=pts[order[(i+1)%order.length]];
-    eventsOnGeom(sampleLine(a,b,16)).forEach(e=>evset.add(e)); }
-  const pen=eventPenalty([...evset]), hours=sol.km/45, price=priceRoute(sol.km,hours,vk,pen);
-  const seq=order.map(i=>pts[i].name).concat(pts[order[0]].name);
+  const multi = cap>0 && demands.slice(1).some(d=>d>0);
+  const routes = multi ? vrpCapacity(pts,demands,cap)
+    : [ (()=>{ const s=vrp(pts); return { order:s.order, km:s.km, load:demands.reduce((a,b)=>a+b,0) }; })() ];
+
+  const PAL=[C.green,C.violet,C.orange,"#b8860b","#0e7c8c"];
+  let totKm=0, totCost=0, totPen=0, rowsHtml=""; const mapRoutes=[];
+  routes.forEach((rt,ri)=>{
+    const order=rt.order, evset=new Set();
+    for(let i=0;i<order.length;i++){ const a=pts[order[i]], b=pts[order[(i+1)%order.length]]; eventsOnGeom(sampleLine(a,b,14)).forEach(e=>evset.add(e)); }
+    const pen=eventPenalty([...evset]), hours=rt.km/45, price=priceRoute(rt.km,hours,vk,pen);
+    totKm+=rt.km; totCost+=price.total; totPen+=pen;
+    let tHr=0; const late=[];
+    for(let i=1;i<order.length;i++){ tHr += haversine(pts[order[i-1]],pts[order[i]])*1.3/45 + 0.25; const gi=order[i]; if(byH[gi]!=null && tHr>byH[gi]) late.push(pts[gi].name); }
+    const seq=order.map(i=>pts[i].name).concat(pts[order[0]].name);
+    rowsHtml+=`<div class="route-row"><div class="rr-top">
+      <span class="rr-name"><span style="display:inline-block;width:10px;height:10px;border-radius:2px;background:${PAL[ri%PAL.length]};margin-right:6px"></span>${routes.length>1?`Vehicle ${ri+1}`:"Route"}</span>
+      <span style="flex:1"></span><span class="rr-total">${rupee(price.total)}</span></div>
+      <div class="rr-path">${seq.map((n,ii)=>`${ii?'<span class="rr-arrow">›</span>':''}<span class="rr-chip">${n}</span>`).join("")}</div>
+      <div class="rr-break"><span>${rt.km.toFixed(0)} km</span>${multi?`<span>load <b>${rt.load}/${cap}</b></span>`:''}<span>${hours.toFixed(1)} h</span>${pen>0?`<span class="pen">event +${rupee(pen)}</span>`:''}${late.length?`<span class="pen">⚠ late: ${late.join(", ")}</span>`:''}</div></div>`;
+    const geom=[]; for(let i=0;i<=order.length;i++){ const p=pts[order[i%order.length]]; geom.push([p.lat,p.lng]); }
+    mapRoutes.push({ geom, color:PAL[ri%PAL.length], src:"vrp" });
+  });
   document.getElementById("vrpResult").innerHTML=`<div class="mini-kpi" style="margin-top:14px">
-    <div><b>${rupee(price.total)}</b><span>round-trip cost</span></div>
-    <div><b>${sol.km.toFixed(0)} km</b><span>optimised distance</span></div>
-    <div><b>${hours.toFixed(1)} h</b><span>drive time</span></div>
-    ${pen>0?`<div><b style="color:var(--bad)">+${rupee(pen)}</b><span>event delay</span></div>`:''}</div>
-    <p class="sub" style="margin-top:8px">Optimised order: <b style="color:var(--ink)">${seq.join(" → ")}</b>${miss.length?` · skipped unknown: ${miss.join(", ")}`:""}</p>`;
-  const geom=[]; for(let i=0;i<=order.length;i++){ const p=pts[order[i%order.length]]; geom.push([p.lat,p.lng]); }
-  geoMap(document.getElementById("vrpMap"), [{ geom, src:"vrp" }], pts.map(p=>({lat:p.lat,lng:p.lng,label:p.name})), 300);
+    <div><b>${routes.length}</b><span>vehicle${routes.length>1?'s':''}</span></div>
+    <div><b>${rupee(totCost)}</b><span>fleet cost</span></div>
+    <div><b>${totKm.toFixed(0)} km</b><span>total distance</span></div>
+    ${totPen>0?`<div><b style="color:var(--bad)">+${rupee(totPen)}</b><span>event delay</span></div>`:''}</div>
+    ${rowsHtml}${miss.length?`<p class="sub">Skipped unknown: ${miss.join(", ")}</p>`:''}`;
+  geoMap(document.getElementById("vrpMap"), mapRoutes, pts.map(p=>({lat:p.lat,lng:p.lng,label:p.name})), 320);
 }
 
 /* ---- Cost & events settings ---- */
@@ -2213,13 +2291,56 @@ function logRoute(o,d,best){
   }catch(e){}
 }
 function getLog(){ try{ return JSON.parse(localStorage.getItem("route_log")||"[]"); }catch(e){ return []; } }
+function saveLog(L){ try{ localStorage.setItem("route_log", JSON.stringify(L.slice(0,25))); }catch(e){} }
+function setActual(t, field, value){
+  const L=getLog(); const r=L.find(x=>x.t===t); if(!r) return;
+  const v=parseFloat(value); if(isNaN(v)||v<=0){ delete r[field]; } else { r[field]=v; }
+  saveLog(L);
+  // recalibrate event penalty from observed error, if we have >=3 actuals
+  applyCalibration(getLog());
+  renderLog();
+}
+/* if planned cost is systematically off from actuals, nudge the idle-cost
+   parameter so future event penalties track reality (the "learning" step). */
+function applyCalibration(L){
+  const paired=L.filter(r=>r.actualCost>0 && r.cost>0);
+  if(paired.length<3) return;
+  const ratio = mean(paired.map(r=>r.actualCost/r.cost));
+  // gently move idle cost toward the observed ratio (bounded)
+  const target = Math.max(50, Math.min(400, COST.idlePerHr*ratio));
+  COST.idlePerHr = Math.round(COST.idlePerHr*0.6 + target*0.4);
+  const inp=document.getElementById("cIdle"); if(inp) inp.value=COST.idlePerHr;
+}
 function renderLog(){
   const L=getLog();
-  document.getElementById("logList").innerHTML = L.length
-    ? `<table class="data"><thead><tr><th>When</th><th>Route</th><th>km</th><th>Planned cost</th><th>Source</th></tr></thead><tbody>`+
-      L.map(r=>`<tr><td>${new Date(r.t).toLocaleString()}</td><td>${r.o} → ${r.d}</td><td>${r.km}</td><td>${rupee(r.cost)}</td><td>${r.src}</td></tr>`).join("")+
-      `</tbody></table>`
-    : `<p class="sub">No plans logged yet — run “Plan a route”.</p>`;
+  if(!L.length){ document.getElementById("logList").innerHTML=`<p class="sub">No plans logged yet — run “Plan a route”.</p>`; return; }
+  const paired=L.filter(r=>r.actualCost>0);
+  let summary="";
+  if(paired.length){
+    const mape=mean(paired.map(r=>Math.abs(r.actualCost-r.cost)/r.actualCost))*100;
+    const bias=mean(paired.map(r=>(r.cost-r.actualCost)/r.actualCost))*100;
+    summary=`<div class="mini-kpi" style="margin:2px 0 12px">
+      <div><b>${paired.length}</b><span>routes with actuals</span></div>
+      <div><b>${mape.toFixed(1)}%</b><span>mean abs error</span></div>
+      <div><b style="color:${Math.abs(bias)<3?'var(--good)':'var(--bad)'}">${bias>=0?'+':''}${bias.toFixed(1)}%</b><span>bias (plan vs actual)</span></div>
+      <div><b>₹${COST.idlePerHr}</b><span>idle cost (auto-tuned)</span></div>
+    </div>`;
+  }
+  const rows=L.map(r=>{
+    const err = r.actualCost>0 ? ((r.cost-r.actualCost)/r.actualCost*100) : null;
+    const errTxt = err==null ? "—" : `<span style="color:${Math.abs(err)<5?'var(--good)':'var(--bad)'}">${err>=0?'+':''}${err.toFixed(0)}%</span>`;
+    return `<tr>
+      <td>${new Date(r.t).toLocaleDateString()}</td>
+      <td>${r.o} → ${r.d}</td>
+      <td>${rupee(r.cost)}</td>
+      <td><input type="number" value="${r.actualCost||''}" placeholder="enter ₹"
+           style="width:96px;padding:4px 7px;font-size:12px;border:1px solid var(--ring);border-radius:7px;background:var(--bg);color:var(--ink)"
+           onchange="setActual(${r.t},'actualCost',this.value)"></td>
+      <td>${errTxt}</td></tr>`;
+  }).join("");
+  document.getElementById("logList").innerHTML = summary +
+    `<table class="data"><thead><tr><th>Date</th><th>Route</th><th>Planned</th><th>Actual cost</th><th>Error</th></tr></thead><tbody>${rows}</tbody></table>` +
+    `<p class="sub" style="margin-top:8px">Enter what a trip actually cost; once 3+ are logged, the idle-cost parameter auto-tunes so future event penalties track reality.</p>`;
 }
 function renderSettingsTab(){
   document.getElementById("cFuel").value=COST.fuel;
