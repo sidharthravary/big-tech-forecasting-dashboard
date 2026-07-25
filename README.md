@@ -70,6 +70,27 @@ VRP with constraints, learning loop).
 - UI/UX modeled on a clean purple SaaS dashboard (sidebar nav, rounded cards, soft shadows).
 - Charts follow a colorblind-validated categorical palette; every chart has a legend,
   tooltips, and a "View data" table.
+- **Dark mode** (toggle in the top bar, remembers your choice and respects the system
+  setting) — charts re-theme, not just invert.
+- **Responsive** down to mobile; **deep-linkable** (the URL hash remembers the view, e.g.
+  `#co/aapl` or `#route/plan`); **exportable** (forecast data to CSV, the chart to PNG).
+- Accessibility: focus-visible outlines, ARIA labels, keyboard-navigable controls.
+
+## Data trust
+
+- Latest reported quarters are verified against primary sources; each company carries a
+  **source link** and an **"as of" date** shown in the footer, and quarters that are still
+  partly estimated are flagged with `~`.
+- Totals and major segments are as-reported; some segment splits and the newest-quarter
+  margins are approximate (stated in the footer). The monthly refresh task keeps them current.
+
+## Forecasting quality
+
+- Four models — Holt-Winters, exponential trend, seasonal moving average, and an
+  **Ensemble** (their blend) — plus **Auto**, which picks the lowest-MAPE model per company
+  (the default).
+- Each forecast reports an **80% confidence-band calibration**: the share of held-out
+  quarters the band actually covered, so you can see when a band is too tight or too wide.
 
 ## Automated monthly refresh
 
