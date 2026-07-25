@@ -310,9 +310,11 @@
         <button class="ghost-btn" id="btnBack">← All companies</button>
         <span class="flabel">Model</span>
         <div class="seg" id="segModel">
-          <button data-v="hw" class="active">Holt-Winters</button>
-          <button data-v="lin">Exponential trend</button>
-          <button data-v="ma">Moving average</button>
+          <button data-v="auto" class="active">Auto (best)</button>
+          <button data-v="hw">Holt-Winters</button>
+          <button data-v="lin">Exp trend</button>
+          <button data-v="ma">Moving avg</button>
+          <button data-v="ens">Ensemble</button>
         </div>
         <span class="flabel">Horizon</span>
         <div class="seg" id="segHorizon">
@@ -675,7 +677,7 @@ const COMPANIES = {
       { label:"Q1 '25", vals:[26.6,46.8,22.0], margin:47.1 },
       { label:"Q2 '25", vals:[27.4,44.6,22.0], margin:46.5 },
       { label:"Q3 '25", vals:[28.8,49.0,24.7], margin:47.2 },
-      { label:"Q4 '25", vals:[30.4,80.0,29.6], margin:47.5, est:true },
+      { label:"Q4 '25", vals:[30.0,85.3,28.5], margin:47.5 },
     ],
   },
 
@@ -697,7 +699,7 @@ const COMPANIES = {
       { label:"Q1 '25", vals:[22.1,32.0,16.0], margin:68.7 },
       { label:"Q2 '25", vals:[23.1,36.5,16.8], margin:68.9 },
       { label:"Q3 '25", vals:[23.9,37.8,16.0], margin:69.0 },
-      { label:"Q4 '25", vals:[24.7,40.0,17.3], margin:68.5, est:true },
+      { label:"Q4 '25", vals:[25.0,39.6,16.7], margin:69.0, est:true },
     ],
   },
 
@@ -719,7 +721,7 @@ const COMPANIES = {
       { label:"Q1 '25", vals:[12.26,77.26,0.68], margin:59.7 },
       { label:"Q2 '25", vals:[13.62,82.54,0.24], margin:59.6 },
       { label:"Q3 '25", vals:[15.15,86.80,0.35], margin:60.0 },
-      { label:"Q4 '25", vals:[16.60,96.00,0.40], margin:59.5, est:true },
+      { label:"Q4 '25", vals:[17.70,95.70,0.40], margin:59.5 },
     ],
   },
 
@@ -741,7 +743,7 @@ const COMPANIES = {
       { label:"Q1 '25", vals:[29.27, 92.89,33.51], margin:50.5 },
       { label:"Q2 '25", vals:[30.87,100.07,36.76], margin:50.9 },
       { label:"Q3 '25", vals:[33.01,106.27,40.90], margin:50.5 },
-      { label:"Q4 '25", vals:[36.00,129.00,48.00], margin:48.5, est:true },
+      { label:"Q4 '25", vals:[35.58,127.10,50.70], margin:48.5 },
     ],
   },
 
@@ -763,7 +765,7 @@ const COMPANIES = {
       { label:"Q1 '25", vals:[0.51,41.39,0.41], margin:81.9 },
       { label:"Q2 '25", vals:[0.56,46.56,0.37], margin:82.0 },
       { label:"Q3 '25", vals:[0.62,50.08,0.47], margin:82.0 },
-      { label:"Q4 '25", vals:[0.70,58.30,1.00], margin:81.5, est:true },
+      { label:"Q4 '25", vals:[0.62,58.14,0.96], margin:81.5 },
     ],
   },
 
@@ -806,7 +808,7 @@ const COMPANIES = {
       { label:"Q1 '25", vals:[2.73,13.97,2.64], margin:16.3 },
       { label:"Q2 '25", vals:[2.79,16.66,3.05], margin:17.2 },
       { label:"Q3 '25", vals:[3.42,21.21,3.47], margin:18.0 },
-      { label:"Q4 '25", vals:[3.30,19.60,3.20], margin:16.8, est:true },
+      { label:"Q4 '25", vals:[3.84,17.69,3.37], margin:20.1 },
     ],
   },
 
@@ -828,7 +830,7 @@ const COMPANIES = {
       { label:"Q1 '25", vals:[7.22,15.06,3.25], margin:58.8 },
       { label:"Q2 '25", vals:[8.12,18.04,3.91], margin:58.6 },
       { label:"Q3 '25", vals:[8.90,20.50,3.72], margin:59.5 },
-      { label:"Q4 '25", vals:[9.50,23.00,3.50], margin:60.0, est:true },
+      { label:"Q4 '25", vals:[11.04,18.98,4.48], margin:62.3, est:true },
     ],
   },
 
@@ -850,7 +852,7 @@ const COMPANIES = {
       { label:"Q3 FY25", vals:[1.13,11.01,1.99], margin:70.8 },
       { label:"Q4 FY25", vals:[2.01,11.70,2.19], margin:70.0 },
       { label:"Q1 FY26", vals:[0.81,12.18,1.94], margin:68.5 },
-      { label:"Q2 FY26", vals:[1.10,12.90,2.06], margin:67.5, est:true },
+      { label:"Q2 FY26", vals:[1.15,12.95,2.00], margin:67.0, est:true },
     ],
   },
 };
@@ -863,6 +865,21 @@ for (const k in COMPANIES){
   co.rows.forEach(r=> r.total = +r.vals.reduce((s,v)=>s+v,0).toFixed(3));
 }
 const CO_ORDER = ["nvda","aapl","msft","googl","amzn","meta","avgo","tsla","tsmc","orcl"];
+
+/* provenance — latest reported quarter, source, and whether that quarter's
+   figures are fully as-reported (true) or still partly estimated (false). */
+const CO_META = {
+  nvda: { asOf:"Q1 FY27 · reported May 2026", source:"https://investor.nvidia.com/",            verified:false },
+  aapl: { asOf:"Q1 FY26 · reported Jan 2026", source:"https://www.apple.com/newsroom/2026/01/apple-reports-first-quarter-results/", verified:true },
+  msft: { asOf:"Q2 FY26 · reported Jan 2026", source:"https://www.microsoft.com/en-us/investor/earnings/fy-2026-q2/press-release-webcast", verified:false },
+  googl:{ asOf:"Q4 2025 · reported Feb 2026", source:"https://abc.xyz/investor/",                verified:true },
+  amzn: { asOf:"Q4 2025 · reported Feb 2026", source:"https://ir.aboutamazon.com/",             verified:true },
+  meta: { asOf:"Q4 2025 · reported Jan 2026", source:"https://investor.atmeta.com/",            verified:true },
+  avgo: { asOf:"Q4 FY25 · reported Dec 2025", source:"https://investors.broadcom.com/",         verified:false },
+  tsla: { asOf:"Q4 2025 · reported Jan 2026", source:"https://ir.tesla.com/",                   verified:true },
+  tsmc: { asOf:"Q4 2025 · reported Jan 2026", source:"https://investor.tsmc.com/english/quarterly-results/2025/q4", verified:false },
+  orcl: { asOf:"Q2 FY26 · reported Dec 2025", source:"https://www.oracle.com/news/announcement/q2fy26-earnings-release-2025-12-10/", verified:false },
+};
 
 /* fiscal-quarter label successor: "Q1 FY23" -> "Q2 FY23", "Q4 '25" -> "Q1 '26" */
 function nextLabels(lastLabel, h){
@@ -941,10 +958,18 @@ function modelHW(y, h, m=4, alpha=0.4, beta=0.15, gamma=0.2){
   return { fc, sigma: residSigma(y, fitted, m) };
 }
 
+function modelEnsemble(y, h){
+  const parts = [modelHW, modelLinear, modelMA].map(fn=>fn(y,h));
+  const fc = [];
+  for (let k=0;k<h;k++) fc.push(mean(parts.map(p=>p.fc[k])));
+  return { fc, sigma: mean(parts.map(p=>p.sigma)) };
+}
+
 const MODELS = {
-  hw:  { name:"Holt-Winters",      fn: modelHW    },
-  lin: { name:"Exponential trend", fn: modelLinear },
-  ma:  { name:"Moving average",    fn: modelMA    },
+  hw:  { name:"Holt-Winters",      fn: modelHW      },
+  lin: { name:"Exponential trend", fn: modelLinear  },
+  ma:  { name:"Moving average",    fn: modelMA      },
+  ens: { name:"Ensemble",          fn: modelEnsemble },
 };
 
 function forecastLog(fn, y, h, z=1.28){
@@ -970,17 +995,39 @@ function backtest(fn, y, hold=4){
   const mape = mean(actual.map((v,i)=> Math.abs((v-preds[i])/v))) * 100;
   return { actual, preds, mape };
 }
+/* expanding-window one-step-ahead coverage of the 80% band */
+function bandCalibration(fn, y, z=1.28){
+  let inside=0, total=0;
+  const start=Math.max(8, y.length-8);
+  for (let t=start; t<y.length; t++){
+    const f=forecastLog(fn, y.slice(0,t), 1, z);
+    if (y[t]>=f.lo[0] && y[t]<=f.hi[0]) inside++;
+    total++;
+  }
+  return total ? { cov: inside/total*100, n: total } : { cov:null, n:0 };
+}
+/* lowest-MAPE model over the 4-quarter backtest */
+function bestModelKey(y){
+  let best="hw", bd=Infinity;
+  for (const k in MODELS){ const m=backtest(MODELS[k].fn, y, 4).mape; if (m<bd){ bd=m; best=k; } }
+  return best;
+}
+function resolveModel(){
+  if (state.model !== "auto") return state.model;
+  return bestModelKey(cur().rows.map(r=>r.total));
+}
 
 /* ============================================================
    3. State + derived series
 ============================================================ */
-const state = { view:"home", company:"nvda", model:"hw", horizon:4, range:999 };
+const state = { view:"home", company:"nvda", model:"auto", horizon:4, range:999 };
 function cur(){ return COMPANIES[state.company]; }
 
 function derive(){
   const co = cur();
   const y = co.rows.map(r=>r.total);
-  const fn = MODELS[state.model].fn;
+  const modelKey = resolveModel();
+  const fn = MODELS[modelKey].fn;
   const h = state.horizon;
 
   const total = forecastLog(fn, y, h);
@@ -997,8 +1044,10 @@ function derive(){
 
   const bt = backtest(fn, y, 4);
   const allMape = Object.fromEntries(Object.entries(MODELS).map(([k,m])=>[k, backtest(m.fn, y, 4).mape]));
+  const cal = bandCalibration(fn, y);
   const fcLabels = nextLabels(co.rows[co.rows.length-1].label, h);
-  return { co, y, total, byType, margin, bt, allMape, fcLabels };
+  return { co, y, total, byType, margin, bt, allMape, cal, fcLabels,
+           modelKey, modelName: MODELS[modelKey].name, auto: state.model==="auto" };
 }
 
 /* ============================================================
@@ -1073,7 +1122,7 @@ function renderHome(){
     const card = el("div","co-card",`
       <div class="co-top">
         <div class="co-ava">${co.ava}</div>
-        <div class="t"><b>${co.name}</b><span>${co.ticker} · through ${co.rows[co.rows.length-1].label}${est}</span></div>
+        <div class="t"><b>${co.name}</b><span>${co.ticker} · ${CO_META[key].asOf}${est}</span></div>
         <span class="co-open">Open →</span>
       </div>
       <div class="co-stats">
@@ -1111,7 +1160,7 @@ function renderKpis(D){
     { label:`Forecast — next ${h} quarters`, value:moneyB(fcSum),
       foot:deltaHtml(fcSum, lastH, `last ${h} qtrs`), spark:sparkline([...D.y.slice(-4), ...D.total.fc]) },
     { label:"Forecast accuracy (4-qtr backtest)", value:pct(acc,1),
-      foot:`<span class="sub">${MODELS[state.model].name} · MAPE ${pct(D.bt.mape,1)}</span>`,
+      foot:`<span class="sub">${D.auto?"Auto → ":""}${D.modelName} · MAPE ${pct(D.bt.mape,1)}</span>`,
       meter:acc },
     { label:"Gross margin (latest qtr)", value:pct(mNow,1),
       foot:deltaHtml(mNow, mYr, "a year ago"), spark:sparkline(rows.slice(-8).map(r=>r.margin)) },
@@ -1135,8 +1184,9 @@ function renderMain(D){
   const labels = [...rows.map(r=>r.label), ...D.fcLabels];
   const nH = y.length, nT = nH + fc.length;
 
+  const calTxt = D.cal.cov!=null ? ` · 80% band covered ${Math.round(D.cal.cov)}% of ${D.cal.n} held-out quarters` : "";
   document.getElementById("mainSub").textContent =
-    `${MODELS[state.model].name} on log revenue · ${labels[0]} – ${labels[labels.length-1]} · shaded band = 80% confidence`;
+    `${D.auto?"Auto → ":""}${D.modelName} on log revenue · ${labels[0]} – ${labels[labels.length-1]} · shaded band = 80% confidence${calTxt}`;
 
   document.getElementById("mainLegend").innerHTML = `
     <span class="key"><span class="sw line" style="background:${C.violet}"></span>Reported revenue</span>
@@ -1265,8 +1315,12 @@ function renderBacktest(D){
   });
 
   const m = D.allMape;
+  const parts = Object.entries(MODELS).map(([k,mo])=>{
+    const txt = `${mo.name} ${pct(m[k],1)}`;
+    return k===D.modelKey ? `<b>${txt}${D.auto?" ✓":""}</b>` : txt;
+  });
   document.getElementById("mapeLine").innerHTML =
-    `MAPE by model — <b>Holt-Winters ${pct(m.hw,1)}</b> · Exponential trend ${pct(m.lin,1)} · Moving average ${pct(m.ma,1)} (lower is better)`;
+    `MAPE by model — ${parts.join(" · ")} (lower is better${D.auto?"; ✓ = auto-selected":""})`;
 }
 
 function renderDonut(D){
@@ -1456,9 +1510,15 @@ function renderAll(){
   renderDonut(D);
   renderStacked(D);
   renderMargin(D);
+  const meta = CO_META[D.co.key] || {};
+  const prov = meta.verified
+    ? `figures as reported`
+    : `latest quarter partly estimated (~)`;
   document.getElementById("footNote").innerHTML =
-    `${D.co.note} · Figures in USD billions, compiled from ${D.co.name} quarterly reports · ` +
-    `forecasts computed live in log-space and are illustrative, not investment advice.`;
+    `Data as of <b style="color:var(--ink-2)">${meta.asOf||"—"}</b> · ${prov} · ` +
+    `<a href="${meta.source||'#'}" target="_blank" rel="noopener" style="color:var(--brand)">source&nbsp;↗</a> · ` +
+    `USD billions from ${D.co.name} filings · totals &amp; major segments as-reported, some splits/margins approximate · ` +
+    `forecasts computed live in log-space · illustrative, not investment advice.`;
 }
 
 function setNav(active){
